@@ -33,6 +33,7 @@ generates break time every 25 minutes.
 2. When coming back to the timer, we should check if there's an active session
    with Supabase. If there is, then we should resume that session and use that
    state for the timer.
+3. Honestly those should be the only times we save the state of the timer.
 
 ## Requirements
 

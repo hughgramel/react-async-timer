@@ -7,6 +7,62 @@ function Timer() {
     const FOCUS_TIME_SECONDS = 3600
     const BREAK_TIME_SECONDS = 300
 
+      /**
+       * Calculates and prints time differences between timestamps
+       * 
+       * @param startTimeStr The start time as ISO string without milliseconds
+       * @param currentTimeStr The current time as ISO string without milliseconds
+       * @param endTimeStr The end time as ISO string without milliseconds
+       */
+      const printTimeDifferences = (
+        startTimeStr: string | undefined,
+        currentTimeStr: string,
+        endTimeStr: string | undefined
+      ) => {
+        if (!startTimeStr || !endTimeStr) {
+          console.log('Cannot calculate time differences: missing timestamps');
+          return;
+        }
+
+        const startDate = new Date(startTimeStr);
+        const currentDate = new Date(currentTimeStr);
+        const endDate = new Date(endTimeStr);
+
+        // Calculate seconds between current and start
+        const elapsedSeconds = Math.floor((currentDate.getTime() - startDate.getTime()) / 1000);
+
+        // Calculate seconds between end and current
+        const remainingSeconds = Math.floor((endDate.getTime() - currentDate.getTime()) / 1000);
+
+        console.log('Timestamp Differences:');
+        console.log('---------------------');
+        console.log('Seconds elapsed (current - start):', elapsedSeconds);
+        console.log('Seconds remaining (end - current):', remainingSeconds);
+        console.log('---------------------');
+      };
+
+    /**
+     * Adjusts a Date object by adding or subtracting minutes
+     * 
+     * @param date The Date object to adjust
+     * @param minutesToAdd Number of minutes to add (positive) or subtract (negative)
+     * @returns A new Date object with adjusted time
+     * 
+     * 
+     */
+    const adjustDateTime = (date: Date | null | undefined, minutesToAdd: number): Date | null | undefined => {
+      if (!date) return date;
+      
+      // Create a new Date object to avoid modifying the original
+      const adjustedDate = new Date(date.getTime());
+      
+      // Add minutes (converting to milliseconds)
+      const millisToAdd = minutesToAdd * 60 * 1000;
+      adjustedDate.setTime(adjustedDate.getTime() + millisToAdd);
+      
+      return adjustedDate;
+    };
+
     /**
      * This function prints out in hh:mm:ss format the number of seconds passed
      * to it. 

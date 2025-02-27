@@ -37,7 +37,64 @@ generates break time every 25 minutes.
 
 ## Requirements
 
-1. A database to store a "sessions" table with the minimum requirements, which
+### Functions needed
+
+1. getActiveSession
+
+   - This function should get the session in the database that is currently
+     active. If there is more than one, then it should throw an exception.
+
+2. setSessionState(Session session)
+
+   - This function should take a session, and set the state to reflect it.
+
+3. isSessionComplete()
+   - This should check the timeElapsed, breakTimeElapsed, and startTime and
+     determine if the session should end.
+4. tick()
+   - This function should move forward one tick in the break time or focus time.
+5. breakIsComplete()
+   - This function should calculate if a break is complete
+   - Basically, if breakIsComplete, we should switch to focus mode.
+   - Then, the time left is simply
+6. switchToFocusMode()
+   - This should switch to focus mode
+7. saveSessionState()
+   - This should save the session state, and either create a newId or update the
+     currentOne
+8. createNewSession()
+   - This should create a new session and set the session Id to whatever it is
+     right now
+9. timeRemainingBetweenDates()
+   - Given two date objects, this should calculate how many seconds are left
+     between them.
+
+## More requirements
+
+3. At any given moment we need:
+
+   - Whether we're in focus, break, complete, complete_and_reviewed.
+   - The time remaining
+   - The total time elapsed.
+   - The focus time elapsed
+   - The break time elapsed
+   - The available break time
+   - The break time remaining
+
+4. Now, how do we set the state?
+
+   - For whether we're in focus, break, or complete, we can have a boolean
+   - For the time remaining we can have
+
+5. A database to store a "sessions" table with the minimum requirements, which
    are:
-   - A session ID to access a timer session
-   - A start∑
+
+   - Okay, so a session is either: In a break or in focus.
+   - A session always has the same start time.
+   - A break always has the same start time
+   - A session always has a certain length that we want to go to, so we have a
+     specified end time / planned duration.
+   - There is always some elapsed duration, that we can calculate through
+     usedBreakTime + currentTime - startTime
+
+   - At any given moment we need

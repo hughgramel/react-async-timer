@@ -1,6 +1,39 @@
+import { useEffect } from 'react';
 import '../styles/Timer.css'
 
+
+
 function Timer() {
+    const FOCUS_TIME_SECONDS = 3600
+    const BREAK_TIME_SECONDS = 300
+
+    /**
+     * This function prints out in hh:mm:ss format the number of seconds passed
+     * to it. 
+     * @param seconds Number of seconds passed
+     * @returns A string representing the number of seconds in hh:mm:ss format
+     */
+    const convertSecondsToTimeFormat = (seconds: number): string => {
+        const numHours = Math.floor((seconds / 60) / 60);
+        const numMinutes = Math.floor((seconds / 60) % 60)
+        const numSeconds = Math.floor(seconds % 60)
+
+        const hoursStr = numHours < 10 ? `0${numHours}` : numHours
+        const minutesStr = numMinutes < 10 ? `0${numMinutes}` : numMinutes
+        const secondsStr = numSeconds < 10 ? `0${numSeconds}` : numSeconds
+
+        return `${hoursStr}:${minutesStr}:${secondsStr}`
+    }
+
+    useEffect(() => {
+        console.log(convertSecondsToTimeFormat(60))
+        console.log(convertSecondsToTimeFormat(65))
+        console.log(convertSecondsToTimeFormat(3600))
+        console.log(convertSecondsToTimeFormat(5000))
+        console.log(convertSecondsToTimeFormat(86398))
+        console.log(convertSecondsToTimeFormat(29))
+    });
+
     return (
         <div className="timer-page">
           <div className="timer-container">

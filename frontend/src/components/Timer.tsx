@@ -222,9 +222,12 @@ function Timer() {
             // Initialize timer state with existing session
             console.log("Setting UI for existing session:");
             // Here we can set state.
-            setUIForSession(existingSessions[0])
             sessionId.current = existingSessions[0].id
+            isBreak.current = existingSessions[0].session_state == "break"
             console.log(sessionId.current)
+            console.log(existingSessions[0].session_state == "break")
+            console.log(isBreak.current)
+            setUIForSession(existingSessions[0])
           }
         } catch (error) {
           console.error("Error initializing session:", error);
@@ -300,7 +303,6 @@ function Timer() {
                     style={{ width: "10%" }}
                   ></div>
                 </div>
-              
               {(
                 <div className="break-text">
                   <button className='take-break-btn' onClick={setBreak}>
@@ -319,7 +321,6 @@ function Timer() {
                 </div>
               )}
             </div>
-            
             {/* Render the fetched sessions for testing */}
             {isLoading ? (
               <div>Loading sessions...</div>

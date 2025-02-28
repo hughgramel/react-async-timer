@@ -245,7 +245,7 @@ function Timer() {
           const startTime = new Date(currFocusStartTime.current)
           const elapsedTimeDiffInMilliseconds = now.getTime() - startTime.getTime()
           secondsElapsed.current = Math.floor(elapsedTimeDiffInMilliseconds / 1000)
-          console.log(secondsElapsed.current)
+          console.log("seconds elapsed: " + secondsElapsed.current)
       }
     }
 
@@ -303,8 +303,17 @@ function Timer() {
       console.log(secondsElapsed)
       // if (isBreak.current && )
 
-      if (secondsRemaining.current < 0) {
-        handleSessionEnd()
+      if (secondsRemaining.current <= 0) {
+        const overflowSeconds = -1 * secondsRemaining.current;
+        // Now this is the positive integer of how many seconds we went over
+        secondsElapsed.current = secondsElapsed.current - overflowSeconds
+        // Now secondsElapsed correctly reflects it's actual time.
+        if (isBreak.current) {
+          returnToFocus()
+        } else {
+          // Then it's over
+          handleSessionEnd()
+        }
       }
     }
 
@@ -314,7 +323,35 @@ function Timer() {
      * Placeholder for session completion logic.
      */
     const handleSessionEnd = () => {
-      console.log("Handling session end")
+      isBreak.current = false
+      setRemainingTimesFromEndTimes()
+      console.log("Time elapsed: " + secondsElapsed.current)
+
+      const totalFocusMinutes = Math.floor(secondsElapsed.current / 60)
+      const totalFocusMinutesRoundedToNearestFifteenMinutes = Math.floor(totalFocusMinutes / 15) * 15
+      console.log(totalFocusMinutes)
+      console.log(totalFocusMinutesRoundedToNearestFifteenMinutes)
+
+      const endSession = async () => {
+        await sessionsService.completeSession(sessionId.current)
+      }
+      endSession()
+
+      secondsRemaining.current = 0
+      secondsElapsed.current = 0
+      sessionCreationInProgressRef.current = false;
+      isInitializedRef.current = false;
+      sessionId.current = -1
+      isBreak.current = false
+      breakTimeRemaining.current = 5
+      currFocusEndTime.current = ""
+      currBreakEndTime.current = ""
+      currFocusStartTime.current = ""
+      currBreakStartTime.current = ""
+
+
+
+      clearInterval(intervalRef.current)
     }
 
     useEffect(() => {
@@ -522,34 +559,38 @@ function Timer() {
      * @throws {Error} If focus time calculations result in null values
      */
     const returnToFocus = async () => {
-      console.log("Turning session back to focus");
-      const breakTimeElapsed = secondsElapsed.current
+      // console.log("Turning session back to focus");
+      // const breakTimeElapsed = secondsElapsed.current
 
-      console.log("Current seconds elapsed: " + secondsElapsed.current)
-      console.log("Current seconds remaining: " + secondsRemaining.current)
+      // console.log("Current seconds elapsed: " + secondsElapsed.current)
+      // console.log("Current seconds remaining: " + secondsRemaining.current)
 
-      const newEndDateString = adjustDateTimeInSeconds(new Date(currFocusEndTime.current), secondsElapsed.current)?.toUTCString()
+      // const newEndDateString = adjustDateTimeInSeconds(new Date(currFocusEndTime.current), secondsElapsed.current)?.toUTCString()
 
-      const session: SessionUpdate = {
-        focus_end_time: newEndDateString,
-        session_state: "focus",
-      };
-      const updatedWithBreak = await sessionsService.updateSession(sessionId.current, session)
-      if (updatedWithBreak) {
-        setActiveSessions(updatedWithBreak);
+      // const session: SessionUpdate = {
+      //   focus_start_time: ,
+      //   focus_end_time: newEndDateString,
+      //   session_state: "focus",
+      // };
+      // const updatedWithBreak = await sessionsService.updateSession(sessionId.current, session)
+      // if (!newEndDateString) throw new Error("New end date is null")
+      // currFocusEndTime.current = newEndDateString
+      // if (updatedWithBreak) {
+      //   setActiveSessions(updatedWithBreak);
         isBreak.current = false;
-      }
-      console.log(updatedWithBreak)
-      if (updatedWithBreak && updatedWithBreak[0]) {
-        setRemainingAndElapsedTime(updatedWithBreak[0])
-        // This will reduce the focus time 
-        secondsElapsed.current -= breakTimeElapsed
-      } else {
-        throw new Error("Focus time is null")
-      }
-      console.log("Updated with break session: " + updatedWithBreak[0])
-      console.log("Current seconds elapsed after: " + secondsElapsed.current)
-      console.log("Current seconds remaining after: " + secondsRemaining.current)
+      // }
+      // console.log(updatedWithBreak)
+
+      // if (updatedWithBreak && updatedWithBreak[0]) {
+      //   // setRemainingAndElapsedTime(updatedWithBreak[0])
+      //   // This will reduce the focus time 
+      // } else {
+      //   throw new Error("Focus time is null")
+      // }
+      // console.log("Updated with break session: " + updatedWithBreak[0])
+      // console.log("Current seconds elapsed after: " + secondsElapsed.current)
+      // console.log("Current seconds remaining after: " + secondsRemaining.current)
+      setRemainingTimesFromEndTimes()
       setRerender((e) => e + 1)
 
     }
@@ -613,7 +654,7 @@ function Timer() {
             )}
 
             <div className="timer-actions">
-              <button className="save-button" >Save session</button>
+              <button className="save-button" onClick={handleSessionEnd}>Save session</button>
               <button className="discard-button" onClick={deleteSession}>Discard session</button>
             </div>
           </div>

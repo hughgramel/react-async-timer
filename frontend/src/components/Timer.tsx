@@ -14,11 +14,13 @@ function Timer() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [secondsRemaining, setSecondsRemaining] = useState(0)
+
   
     // Add a session creation in progress ref to prevent concurrent calls
     const sessionCreationInProgressRef = useRef(false);
     const isInitializedRef = useRef(false);
-
+    const sessionId = useRef(-1)
+  
     const convertSecondsToMinutes = (seconds: number): number => {
       return Math.floor(seconds / 60)
     }
@@ -149,7 +151,6 @@ function Timer() {
           session_state: "focus",
           user_id: USER_ID
         });
-        
         setActiveSessions(session);
         return session;
       } catch (err) {
@@ -161,6 +162,18 @@ function Timer() {
         setIsLoading(false);
       }
     };
+
+
+    const setUIForSession = (session: Session) => {
+      if (session.focus_end_time) {
+        const endTime = new Date(session.focus_end_time);
+        const now = new Date(new Date().toISOString().slice(0, -1))
+        const timeDiffInMilliseconds = endTime.getTime() - now.getTime();
+        setSecondsRemaining(Math.floor(timeDiffInMilliseconds / 1000));
+      }
+    }
+
+    
 
     useEffect(() => {
       // Block initialization if already done
@@ -182,10 +195,22 @@ function Timer() {
           
           // Only create a new session if no active sessions exist
           if (!existingSessions || existingSessions.length === 0) {
-            await createNewUserSession();
+            const newSession = await createNewUserSession();
+            if (newSession) {
+              setUIForSession(newSession[0])
+              console.log(newSession[0])
+              sessionId.current = newSession[0].id
+              console.log(sessionId.current)
+            }
+
           } else {
             console.log("Using existing session:", existingSessions[0]);
             // Initialize timer state with existing session
+            console.log("Setting UI for existing session:");
+            // Here we can set state.
+            setUIForSession(existingSessions[0])
+            sessionId.current = existingSessions[0].id
+            console.log(sessionId.current)
           }
         } catch (error) {
           console.error("Error initializing session:", error);
@@ -197,7 +222,20 @@ function Timer() {
 
       // Call the function
       initializeSession();
+
     }, []);
+
+
+
+    const deleteSession = async () => {
+      try {
+        await sessionsService.deleteSession(sessionId.current)
+        console.log("session deleted")
+      } catch (error) {
+        console.error("Error initializing session:", error);
+        setError("Failed to initialize session");
+      }
+    }
 
     return (
         <div className="timer-page">
@@ -207,7 +245,7 @@ function Timer() {
             </div>
             
             <div className="timer-display">
-                <div className="large-timer">00:00:00</div>
+                <div className="large-timer">{convertSecondsToTimeFormat(secondsRemaining)}</div>
             </div>
             
             <div className="timer-progress">
@@ -254,7 +292,7 @@ function Timer() {
             
             <div className="timer-actions">
               <button className="save-button" >Save session</button>
-              <button className="discard-button">Discard session</button>
+              <button className="discard-button" onClick={deleteSession}>Discard session</button>
             </div>
           </div>
         </div>

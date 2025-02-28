@@ -1,11 +1,17 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import '../styles/Timer.css'
+import { sessionsService, Session } from '../services/sessionsService';
 
 
 
 function Timer() {
     const FOCUS_TIME_SECONDS = 3600
     const BREAK_TIME_SECONDS = 300
+
+    // Add state to store the fetched sessions
+    const [activeSessions, setActiveSessions] = useState<Session[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
       /**
        * Calculates and prints time differences between timestamps
@@ -81,6 +87,24 @@ function Timer() {
         return `${hoursStr}:${minutesStr}:${secondsStr}`
     }
 
+    // Fix this function to properly handle the Promise
+    const fetchUserSessions = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        // Await the Promise to get the actual data
+        const sessions = await sessionsService.getActiveUserSessions(1);
+        setActiveSessions(sessions);
+        return sessions; // Return actual data, not a Promise
+      } catch (err) {
+        console.error("Error fetching sessions:", err);
+        setError("Failed to fetch sessions");
+        return [];
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
     useEffect(() => {
         console.log(convertSecondsToTimeFormat(60))
         console.log(convertSecondsToTimeFormat(65))
@@ -88,7 +112,16 @@ function Timer() {
         console.log(convertSecondsToTimeFormat(5000))
         console.log(convertSecondsToTimeFormat(86398))
         console.log(convertSecondsToTimeFormat(29))
-    });
+        
+        // Call the async function and handle the Promise properly
+        fetchUserSessions()
+          .then(sessions => {
+            console.log("Fetched sessions:", sessions);
+          })
+          .catch(err => {
+            console.error("Error in useEffect:", err);
+          });
+    }, []);
 
     return (
         <div className="timer-page">
@@ -115,9 +148,33 @@ function Timer() {
                   <button className='take-break-btn'>
                     Take a break (5 mins left)
                   </button>
+                  <button onClick={async () => {
+                    // Properly handle the Promise when button is clicked
+                    const sessions = await fetchUserSessions();
+                    console.log("Active sessions:", sessions);
+                  }}>
+                    Get active sessions
+                  </button>
                 </div>
               )}
             </div>
+            
+            {/* Render the fetched sessions for testing */}
+            {isLoading ? (
+              <div>Loading sessions...</div>
+            ) : error ? (
+              <div>Error: {error}</div>
+            ) : (
+              <div>
+                <h3>Active Sessions ({activeSessions.length})</h3>
+                {activeSessions.map(session => (
+                  <div key={session.id}>
+                    Session ID: {session.id}, 
+                    State: {session.session_state}
+                  </div>
+                ))}
+              </div>
+            )}
             
             <div className="timer-actions">
               <button className="save-button" >Save session</button>

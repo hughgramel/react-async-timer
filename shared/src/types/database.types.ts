@@ -11,37 +11,34 @@ export type Database = {
     Tables: {
       sessions: {
         Row: {
-          available_break_time_minutes: number | null
-          break_time_elapsed_minutes: number | null
-          created_at: string
-          current_break_session_planned_duration: number | null
-          current_break_session_start: string | null
+          break_end_time: string | null
+          break_minutes_remaining: number | null
+          break_start_time: string | null
+          focus_end_time: string | null
+          focus_start_time: string | null
           id: number
-          planned_duration_minutes: number | null
-          session_start: string | null
           session_state: Database["public"]["Enums"]["session_state"] | null
+          user_id: number
         }
         Insert: {
-          available_break_time_minutes?: number | null
-          break_time_elapsed_minutes?: number | null
-          created_at?: string
-          current_break_session_planned_duration?: number | null
-          current_break_session_start?: string | null
+          break_end_time?: string | null
+          break_minutes_remaining?: number | null
+          break_start_time?: string | null
+          focus_end_time?: string | null
+          focus_start_time?: string | null
           id?: number
-          planned_duration_minutes?: number | null
-          session_start?: string | null
           session_state?: Database["public"]["Enums"]["session_state"] | null
+          user_id?: number
         }
         Update: {
-          available_break_time_minutes?: number | null
-          break_time_elapsed_minutes?: number | null
-          created_at?: string
-          current_break_session_planned_duration?: number | null
-          current_break_session_start?: string | null
+          break_end_time?: string | null
+          break_minutes_remaining?: number | null
+          break_start_time?: string | null
+          focus_end_time?: string | null
+          focus_start_time?: string | null
           id?: number
-          planned_duration_minutes?: number | null
-          session_start?: string | null
           session_state?: Database["public"]["Enums"]["session_state"] | null
+          user_id?: number
         }
         Relationships: []
       }

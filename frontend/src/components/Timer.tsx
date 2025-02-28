@@ -13,7 +13,7 @@ function Timer() {
     const [activeSessions, setActiveSessions] = useState<Session[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [secondsRemaining, setSecondsRemaining] = useState(0)
+    const secondsRemaining = useRef(0)
 
 
   
@@ -23,8 +23,8 @@ function Timer() {
     const sessionId = useRef(-1)
     const isBreak = useRef(false)
     const breakTimeRemaining = useRef(5)
-    const currEndTime = useRef("")
-  
+    const currFocusEndTime = useRef("")
+    const currBreakEndTime = useRef<string | null>(null)
     const convertSecondsToMinutes = (seconds: number): number => {
       return Math.floor(seconds / 60)
     }
@@ -161,8 +161,8 @@ function Timer() {
         });
         setActiveSessions(session);
 
-        currEndTime.current = ending_time
-        console.log("curr end time: " + currEndTime.current)
+        currFocusEndTime.current = ending_time
+        console.log("curr end time: " + currFocusEndTime.current)
         return session;
       } catch (err) {
         console.error("Error creating session:", err);
@@ -183,7 +183,7 @@ function Timer() {
           const endTime = new Date(session.break_end_time);
           const now = new Date()
           const timeDiffInMilliseconds = endTime.getTime() - now.getTime();
-          setSecondsRemaining(Math.floor(timeDiffInMilliseconds / 1000));
+          secondsRemaining.current = Math.floor(timeDiffInMilliseconds / 1000);
         }
       } else {
         console.log("Setting UI to be in focus time")
@@ -191,9 +191,10 @@ function Timer() {
           const endTime = new Date(session.focus_end_time);
           const now = new Date()
           const timeDiffInMilliseconds = endTime.getTime() - now.getTime();
-          setSecondsRemaining(Math.floor(timeDiffInMilliseconds / 1000));
+          secondsRemaining.current = Math.floor(timeDiffInMilliseconds / 1000);
         }
       }
+      console.log(secondsRemaining)
     }
 
     
@@ -234,11 +235,13 @@ function Timer() {
             sessionId.current = existingSessions[0].id
             isBreak.current = existingSessions[0].session_state == "break"
             if (existingSessions[0].focus_end_time) {
-              currEndTime.current = existingSessions[0].focus_end_time
+              currFocusEndTime.current = existingSessions[0].focus_end_time
             } else {
               throw new Error("end time is null")
             }
             breakTimeRemaining.current = existingSessions[0].break_minutes_remaining
+            currBreakEndTime.current = existingSessions[0].break_end_time
+            currFocusEndTime.current = existingSessions[0].focus_end_time
             console.log(sessionId.current)
             console.log(existingSessions[0].session_state == "break")
             console.log(isBreak.current)
@@ -272,22 +275,57 @@ function Timer() {
 
 
     const setBreak = async () => {
-      console.log("Updating session with break time");
-      const currTime = new Date();
-      console.log(currEndTime.current)
-      const session: SessionUpdate = {
-        break_end_time: adjustDateTime(currTime, convertSecondsToMinutes(BREAK_TIME_SECONDS))?.toUTCString(),
-        // focus_end_time: adjustDateTime(new Date(currEndTime.current), convertSecondsToMinutes(BREAK_TIME_SECONDS))?.toUTCString(),
-        break_start_time: currTime.toUTCString(),
-        break_minutes_remaining: breakTimeRemaining.current - 5,
-        session_state: "break",
-      };
-      const updatedWithBreak = await sessionsService.updateSession(sessionId.current, session)
-      if (updatedWithBreak) {
-        setActiveSessions(updatedWithBreak);
+      if (breakTimeRemaining.current >= 5) {
+        // Now if we're already in a 
+        if (!isBreak.current) {
+          console.log("Starting new break")
+          const currTime = new Date();
+          const breakEndingTime = adjustDateTime(currTime, convertSecondsToMinutes(BREAK_TIME_SECONDS))?.toUTCString()
+          const session: SessionUpdate = {
+            break_end_time: breakEndingTime,
+            // focus_end_time: adjustDateTime(new Date(currFocusEndTime.current), convertSecondsToMinutes(BREAK_TIME_SECONDS))?.toUTCString(),
+            break_start_time: currTime.toUTCString(),
+            break_minutes_remaining: breakTimeRemaining.current - 5,
+            session_state: "break",
+          };
+          if (!breakEndingTime) {
+            throw new Error("Break ending time is null")
+          }
+          console.log("breakending time " + breakEndingTime)
+          currBreakEndTime.current = breakEndingTime;
+          const updatedWithBreak = await sessionsService.updateSession(sessionId.current, session)
+          if (updatedWithBreak) {
+            setActiveSessions(updatedWithBreak);
+          }
+          isBreak.current = true;
+        } else {
+          // This means there's already a current break
+          console.log("Adding break time to already going break")
+          console.log(currBreakEndTime.current)
+          if (!currBreakEndTime.current) {
+            throw new Error("Curr break ending time is null")
+          }
+          const breakEndingTime = adjustDateTime(new Date(currBreakEndTime.current), convertSecondsToMinutes(BREAK_TIME_SECONDS))?.toUTCString()
+          console.log(breakEndingTime)
+          const session: SessionUpdate = {
+            break_end_time: breakEndingTime,
+            // focus_end_time: adjustDateTime(new Date(currFocusEndTime.current), convertSecondsToMinutes(BREAK_TIME_SECONDS))?.toUTCString(),
+            break_minutes_remaining: breakTimeRemaining.current - 5,
+            session_state: "break",
+          };
+          if (!breakEndingTime) {
+            throw new Error("Break ending time is null")
+          }
+          currBreakEndTime.current = breakEndingTime;
+          console.log()
+          const updatedWithBreak = await sessionsService.updateSession(sessionId.current, session)
+          if (updatedWithBreak) {
+            setActiveSessions(updatedWithBreak);
+          }
+        }
+      } else {
+        console.log("Not enough break time!")
       }
-      isBreak.current = true;
-      console.log(updatedWithBreak)
     }
 
     const returnToFocus = async () => {
@@ -311,7 +349,7 @@ function Timer() {
             </div>
             
             <div className="timer-display">
-                <div className="large-timer">{convertSecondsToTimeFormat(secondsRemaining)}</div>
+                <div className="large-timer">{convertSecondsToTimeFormat(secondsRemaining.current)}</div>
             </div>
             
             <div className="timer-progress">

@@ -17,7 +17,9 @@ export type Database = {
           focus_end_time: string | null
           focus_start_time: string | null
           id: number
+          planned_minutes: number
           session_state: Database["public"]["Enums"]["session_state"] | null
+          total_minutes_done: number | null
           user_id: number
         }
         Insert: {
@@ -27,7 +29,9 @@ export type Database = {
           focus_end_time?: string | null
           focus_start_time?: string | null
           id?: number
+          planned_minutes?: number
           session_state?: Database["public"]["Enums"]["session_state"] | null
+          total_minutes_done?: number | null
           user_id?: number
         }
         Update: {
@@ -37,7 +41,9 @@ export type Database = {
           focus_end_time?: string | null
           focus_start_time?: string | null
           id?: number
+          planned_minutes?: number
           session_state?: Database["public"]["Enums"]["session_state"] | null
+          total_minutes_done?: number | null
           user_id?: number
         }
         Relationships: []

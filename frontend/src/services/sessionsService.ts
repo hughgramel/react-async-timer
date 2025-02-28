@@ -171,41 +171,7 @@ export const sessionsService = {
       throw error;
     }
   },
-  
-  /**
-   * Completes an active session by setting its state to 'complete'.
-   * This method is used to properly end a session rather than deleting it.
-   * 
-   * @param sessionId - ID of the session to complete
-   * @returns Promise<void>
-   * @throws Error if database update fails
-   * 
-   * @example
-   * try {
-   *   await sessionsService.completeSession(123);
-   *   console.log('Session completed successfully');
-   * } catch (error) {
-   *   console.error('Failed to complete session:', error);
-   * }
-   */
-  completeSession: async (sessionId: number) => {
-    try {
-      // Set session state to complete and add end time
-      const   { error } = await supabase
-        .from('sessions')
-        .update({
-          session_state: 'complete',
-        })
-        .eq('id', sessionId);
-        
-      if (error) {
-        throw error;
-      }
-    } catch (error) {
-      console.error('Error completing session:', error);
-      throw error;
-    }
-  },
+
   
   /**
    * Retrieves active sessions regardless of user.

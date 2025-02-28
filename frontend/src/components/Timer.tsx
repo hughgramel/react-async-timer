@@ -6,23 +6,23 @@ import { copyFileSync } from 'fs';
 
 /*
  * Timer component that manages Pomodoro-style focus and break sessions.
- * 
+ *
  * This component handles:
  * - Creating and managing user focus sessions
  * - Tracking time elapsed and remaining during sessions
  * - Managing transitions between focus and break states
  * - Persisting session data through API calls
  * - Providing UI controls for session management (breaks, discarding)
- * 
+ *
  * The component initializes by checking for existing active sessions and
  * creating a new one if none exist. It uses refs for most state management
  * to avoid re-renders and ensure timer accuracy.
- * 
+ *
  * @returns {JSX.Element} The rendered Timer component
  */
 function Timer() {
-    const FOCUS_TIME_SECONDS = 30 * 60
-    const BREAK_TIME_SECONDS = 300
+    const FOCUS_TIME_SECONDS = 60
+    const BREAK_TIME_SECONDS = 60
     const USER_ID = 1;
 
     // Add state to store the fetched sessions
@@ -46,6 +46,8 @@ function Timer() {
     const currFocusStartTime = useRef("")
     const currBreakStartTime = useRef("")
     const intervalRef = useRef<NodeJS.Timeout>();
+    const isCompleted = useRef(false)
+    const totalMinutesElapsedRoundedToFifteen = useRef(0)
 
 
     /**
@@ -62,9 +64,9 @@ function Timer() {
 
     /**
      * Adjusts a Date object by adding or subtracting minutes.
-     * 
+     *
      * Creates a new Date object with the adjusted time to avoid modifying the original.
-     * 
+     *
      * @param {Date | null | undefined} date - The Date object to adjust
      * @param {number} minutesToAdd - Number of minutes to add (positive) or subtract (negative)
      * @returns {Date | null | undefined} A new Date object with adjusted time, or null/undefined if input was null/undefined
@@ -188,7 +190,8 @@ function Timer() {
           focus_start_time: currTime.toUTCString(),
           focus_end_time: ending_time,
           session_state: "focus",
-          user_id: USER_ID
+          user_id: USER_ID,
+          planned_minutes: convertSecondsToMinutes(FOCUS_TIME_SECONDS)
         });
         setActiveSessions(session);
 
@@ -333,25 +336,22 @@ function Timer() {
       console.log(totalFocusMinutesRoundedToNearestFifteenMinutes)
 
       const endSession = async () => {
-        await sessionsService.completeSession(sessionId.current)
+        await sessionsService.updateSession(sessionId.current, {
+          session_state: 'complete',
+          total_minutes_done: totalFocusMinutes
+        })
       }
       endSession()
 
       secondsRemaining.current = 0
       secondsElapsed.current = 0
       sessionCreationInProgressRef.current = false;
-      isInitializedRef.current = false;
-      sessionId.current = -1
-      isBreak.current = false
-      breakTimeRemaining.current = 5
-      currFocusEndTime.current = ""
-      currBreakEndTime.current = ""
-      currFocusStartTime.current = ""
-      currBreakStartTime.current = ""
-
-
+      totalMinutesElapsedRoundedToFifteen.current = totalFocusMinutesRoundedToNearestFifteenMinutes
+      
+      isCompleted.current = true;
 
       clearInterval(intervalRef.current)
+      setRerender((e) => e + 1)
     }
 
     useEffect(() => {
@@ -375,7 +375,7 @@ function Timer() {
         console.log(currBreakEndTime.current)
         console.log(currFocusStartTime.current)
         console.log(currBreakStartTime.current)
-        
+
       }, 1000); // Runs every 1 second
     }
 
@@ -386,7 +386,7 @@ function Timer() {
         console.log("Session already initialized - skipping");
         return;
       }
-      
+
       console.log("Starting session initialization");
       isInitializedRef.current = true; // Mark initialized immediately
 
@@ -434,8 +434,19 @@ function Timer() {
             console.log(existingSessions[0].session_state == "break")
             console.log(isBreak.current)
             console.log("breaktimeremaining: " + breakTimeRemaining.current)
-
-            setRemainingAndElapsedTime(existingSessions[0])
+            setRemainingTimesFromEndTimes()
+            if (secondsRemaining.current <= 0) {
+              const overflowSeconds = -1 * secondsRemaining.current;
+              // Now this is the positive integer of how many seconds we went over
+              secondsElapsed.current = secondsElapsed.current - overflowSeconds
+              // Now secondsElapsed correctly reflects it's actual time.
+              if (isBreak.current) {
+                returnToFocus()
+              } else {
+                // Then it's over
+                handleSessionEnd()
+              }
+            }
           }
         } catch (error) {
           console.error("Error initializing session:", error);
@@ -454,9 +465,9 @@ function Timer() {
 
     /**
      * Deletes the current session from the database.
-     * 
+     *
      * Calls the API to remove the session and triggers a re-render.
-     * 
+     *
      * @returns {Promise<void>} Promise that resolves when the session is deleted
      */
     const deleteSession = async () => {
@@ -548,13 +559,13 @@ function Timer() {
 
     /**
      * Transitions from break state back to focus state.
-     * 
+     *
      * This function:
      * 1. Calculates how long the break lasted
      * 2. Updates the focus end time to account for the break
      * 3. Changes the session state back to focus
      * 4. Persists changes to the database
-     * 
+     *
      * @returns {Promise<void>} Promise that resolves when focus mode is restored
      * @throws {Error} If focus time calculations result in null values
      */
@@ -567,23 +578,21 @@ function Timer() {
 
       // const newEndDateString = adjustDateTimeInSeconds(new Date(currFocusEndTime.current), secondsElapsed.current)?.toUTCString()
 
-      // const session: SessionUpdate = {
-      //   focus_start_time: ,
-      //   focus_end_time: newEndDateString,
-      //   session_state: "focus",
-      // };
-      // const updatedWithBreak = await sessionsService.updateSession(sessionId.current, session)
+      const session: SessionUpdate = {
+        session_state: "focus",
+      };
+      const updatedWithBreak = await sessionsService.updateSession(sessionId.current, session)
       // if (!newEndDateString) throw new Error("New end date is null")
       // currFocusEndTime.current = newEndDateString
-      // if (updatedWithBreak) {
-      //   setActiveSessions(updatedWithBreak);
+      if (updatedWithBreak) {
+        setActiveSessions(updatedWithBreak);
         isBreak.current = false;
-      // }
+      }
       // console.log(updatedWithBreak)
 
       // if (updatedWithBreak && updatedWithBreak[0]) {
       //   // setRemainingAndElapsedTime(updatedWithBreak[0])
-      //   // This will reduce the focus time 
+      //   // This will reduce the focus time
       // } else {
       //   throw new Error("Focus time is null")
       // }
@@ -595,69 +604,104 @@ function Timer() {
 
     }
 
+    const getMinutesOrHoursIfOverSixty = (seconds: number): string => {
+      if (seconds < 3600) {
+        return (seconds / 60) + "m"
+      } else {
+        return (seconds / 60 / 60) + "h"
+      }
+    }
+
+    const formatToJustTime = (dateString: string): string => {
+      const date = new Date(dateString);
+    
+      // This will produce something like "2:45 PM"
+      const timeString = date.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      });
+    
+      // Split at space: ["2:45", "PM"]
+      const [time, ampm] = timeString.split(' ');
+    
+      // Make "PM" => "pm" and remove the space
+      return `${time}${ampm.toLowerCase()}`;
+    }
+
     return (
+  
         <div className="timer-page">
-          <div className="timer-container">
-            <div>
-                <h1 className="timer-header">L1: {isBreak.current ? "Break" : "Focus"} Session (3h)</h1>
-            </div>
+          {
+            isCompleted.current ? 
+              <div>
+                <h1 className="timer header">Session complete!</h1>
+                <h2>Total time elapsed: {totalMinutesElapsedRoundedToFifteen.current}</h2>
+                <h2>Start time: {formatToJustTime(currFocusStartTime.current)}</h2>
+                <h2>End time: {formatToJustTime(currFocusEndTime.current)}</h2>
+              </div> :
+            <div className="timer-container">
+              <div>
+                  <h1 className="timer-header">{isBreak.current ? "" : "L1: " }{isBreak.current ? "Break" : "Focus"} Session ({isBreak.current ? getMinutesOrHoursIfOverSixty(BREAK_TIME_SECONDS) : getMinutesOrHoursIfOverSixty(FOCUS_TIME_SECONDS)})</h1>
+              </div>
 
-            <div className="timer-display">
-                <div className="small-timer">{convertSecondsToTimeFormat(secondsElapsed.current)}</div>
-            </div>
+              <div className="timer-display">
+                  <div className="small-timer">{convertSecondsToTimeFormat(secondsRemaining.current < 0 ? secondsElapsed.current - (-1 * secondsRemaining.current) : secondsElapsed.current)}</div>
+              </div>
 
-            <div className="timer-display">
-                <div className="large-timer">{convertSecondsToTimeFormat(secondsRemaining.current)}</div>
-            </div>
+              <div className="timer-display">
+                  <div className="large-timer">{convertSecondsToTimeFormat(secondsRemaining.current < 0 ? 0 : secondsRemaining.current)}</div>
+              </div>
 
-            <div className="timer-progress">
+              <div className="timer-progress">
 
-                <div className="progress-bar">
-                  <div
-                    className="progress-fill"
-                    style={{ width: `${(secondsElapsed.current / (secondsElapsed.current + secondsRemaining.current)) * 100}%` }}
-                  ></div>
-                </div>
-              {(
-                <div className="break-text">
-                  {
-                    isBreak.current ? <div>
-                       <button className='take-break-btn' onClick={returnToFocus} >
-                    Go back to focus
-                  </button>
-                  <button className='take-break-btn' onClick={setBreak} disabled={breakTimeRemaining.current == 0 ? true : false}>
-                    Extend your break ({breakTimeRemaining.current} mins left)
-                  </button>
+                  <div className="progress-bar">
+                    <div
+                      className="progress-fill"
+                      style={{ width: `${(secondsElapsed.current / (secondsElapsed.current + secondsRemaining.current)) * 100}%` }}
+                    ></div>
+                  </div>
+                {(
+                  <div className="break-text">
+                    {
+                      isBreak.current ? <div>
+                        <button className='take-break-btn' onClick={returnToFocus} >
+                      Go back to focus
+                    </button>
+                    <button className='take-break-btn' onClick={setBreak} disabled={breakTimeRemaining.current == 0 ? true : false}>
+                      Extend your break ({breakTimeRemaining.current} mins left)
+                    </button>
+                      </div>
+                      :  <button className='take-break-btn' onClick={setBreak} disabled={breakTimeRemaining.current == 0 ? true : false}>
+                      Take a break ({breakTimeRemaining.current} mins left)
+                    </button>
+                    }
+                  </div>
+                )}
+              </div>
+              {/* Render the fetched sessions for testing */}
+              {isLoading ? (
+                <div>Loading sessions...</div>
+              ) : error ? (
+                <div>Error: {error}</div>
+              ) : (
+                <div>
+                  <h3>Active Sessions ({activeSessions.length})</h3>
+                  {activeSessions.map(session => (
+                    <div key={session.id}>
+                      Session ID: {session.id},
+                      State: {session.session_state}
                     </div>
-                     :  <button className='take-break-btn' onClick={setBreak} disabled={breakTimeRemaining.current == 0 ? true : false}>
-                    Take a break ({breakTimeRemaining.current} mins left)
-                  </button>
-                  }
+                  ))}
                 </div>
               )}
-            </div>
-            {/* Render the fetched sessions for testing */}
-            {isLoading ? (
-              <div>Loading sessions...</div>
-            ) : error ? (
-              <div>Error: {error}</div>
-            ) : (
-              <div>
-                <h3>Active Sessions ({activeSessions.length})</h3>
-                {activeSessions.map(session => (
-                  <div key={session.id}>
-                    Session ID: {session.id},
-                    State: {session.session_state}
-                  </div>
-                ))}
-              </div>
-            )}
 
-            <div className="timer-actions">
-              <button className="save-button" onClick={handleSessionEnd}>Save session</button>
-              <button className="discard-button" onClick={deleteSession}>Discard session</button>
+              <div className="timer-actions">
+                <button className="save-button" onClick={handleSessionEnd}>Save session</button>
+                <button className="discard-button" onClick={deleteSession}>Discard session</button>
+              </div>
             </div>
-          </div>
+          }
         </div>
       );
 }

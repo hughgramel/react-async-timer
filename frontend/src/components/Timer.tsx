@@ -13,6 +13,7 @@ function Timer() {
     const [activeSessions, setActiveSessions] = useState<Session[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [, setRerender] = useState(0)
     const secondsRemaining = useRef(0)
 
 
@@ -197,7 +198,15 @@ function Timer() {
       console.log(secondsRemaining)
     }
 
-    
+    useEffect(() => {
+      const intervalId: NodeJS.Timeout = setInterval(() => {
+        secondsRemaining.current -= 1
+        setRerender((e) => e + 1)
+      }, 1000); // Runs every 1 second
+      return () => clearInterval(intervalId); // Cleanup when component unmounts
+    }, [])
+
+
 
     useEffect(() => {
       // Block initialization if already done
@@ -298,6 +307,12 @@ function Timer() {
             setActiveSessions(updatedWithBreak);
           }
           isBreak.current = true;
+          if (updatedWithBreak && updatedWithBreak[0] && updatedWithBreak[0].break_end_time) {
+            const endTime = new Date(updatedWithBreak[0].break_end_time);
+            const now = new Date()
+            const timeDiffInMilliseconds = endTime.getTime() - now.getTime();
+            secondsRemaining.current = Math.floor(timeDiffInMilliseconds / 1000);
+          }
         } else {
           // This means there's already a current break
           console.log("Adding break time to already going break")
@@ -322,7 +337,14 @@ function Timer() {
           if (updatedWithBreak) {
             setActiveSessions(updatedWithBreak);
           }
+          if (updatedWithBreak && updatedWithBreak[0] && updatedWithBreak[0].break_end_time) {
+            const endTime = new Date(updatedWithBreak[0].break_end_time);
+            const now = new Date()
+            const timeDiffInMilliseconds = endTime.getTime() - now.getTime();
+            secondsRemaining.current = Math.floor(timeDiffInMilliseconds / 1000);
+          }
         }
+        setRerender((e) => e + 1)
       } else {
         console.log("Not enough break time!")
       }
@@ -339,6 +361,14 @@ function Timer() {
         isBreak.current = false;
       }
       console.log(updatedWithBreak)
+      if (updatedWithBreak && updatedWithBreak[0] && updatedWithBreak[0].focus_end_time && updatedWithBreak[0].focus_start_time) {
+        const endTime = new Date(updatedWithBreak[0].focus_end_time);
+        const now = new Date()
+        const timeDiffInMilliseconds = endTime.getTime() - now.getTime();
+        secondsRemaining.current = Math.floor(timeDiffInMilliseconds / 1000);
+      }
+      setRerender((e) => e + 1)
+
     }
 
     return (
@@ -388,7 +418,7 @@ function Timer() {
                 <h3>Active Sessions ({activeSessions.length})</h3>
                 {activeSessions.map(session => (
                   <div key={session.id}>
-                    Session ID: {session.id}, 
+                    Session ID: {session.id},
                     State: {session.session_state}
                   </div>
                 ))}

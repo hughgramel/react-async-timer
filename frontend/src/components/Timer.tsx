@@ -106,12 +106,8 @@ function Timer() {
     }
 
     useEffect(() => {
-        console.log(convertSecondsToTimeFormat(60))
-        console.log(convertSecondsToTimeFormat(65))
-        console.log(convertSecondsToTimeFormat(3600))
-        console.log(convertSecondsToTimeFormat(5000))
-        console.log(convertSecondsToTimeFormat(86398))
-        console.log(convertSecondsToTimeFormat(29))
+        
+
         
         // Call the async function and handle the Promise properly
         fetchUserSessions()
@@ -121,6 +117,7 @@ function Timer() {
           .catch(err => {
             console.error("Error in useEffect:", err);
           });
+        console.log("Active sessions:", activeSessions)
     }, []);
 
     return (

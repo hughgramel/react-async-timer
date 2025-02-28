@@ -291,6 +291,7 @@ function Timer() {
       try {
         await sessionsService.deleteSession(sessionId.current)
         console.log("session deleted")
+        setRerender((e) => e + 1)
       } catch (error) {
         console.error("Error initializing session:", error);
         setError("Failed to initialize session");
@@ -413,12 +414,12 @@ function Timer() {
                        <button className='take-break-btn' onClick={returnToFocus} >
                     Go back to focus
                   </button>
-                  <button className='take-break-btn' onClick={setBreak} disabled={breakTimeRemaining.current ? true : false}>
+                  <button className='take-break-btn' onClick={setBreak} disabled={breakTimeRemaining.current == 0 ? true : false}>
                     Extend your break ({breakTimeRemaining.current} mins left)
                   </button>
                     </div>
                      :  <button className='take-break-btn' onClick={setBreak} disabled={breakTimeRemaining.current == 0 ? true : false}>
-                    Take a break (5 mins left)
+                    Take a break ({breakTimeRemaining.current} mins left)
                   </button>
                   }
                 </div>

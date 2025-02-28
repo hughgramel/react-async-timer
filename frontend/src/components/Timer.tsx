@@ -19,6 +19,7 @@ function Timer() {
 
   
     // Add a session creation in progress ref to prevent concurrent calls
+    const secondsElapsed = useRef(0)
     const sessionCreationInProgressRef = useRef(false);
     const isInitializedRef = useRef(false);
     const sessionId = useRef(-1)
@@ -198,13 +199,22 @@ function Timer() {
       console.log(secondsRemaining)
     }
 
+    // This method should set both the remaining and elapsed time given a
+    // certain session.
+    const setRemainingAndElapsedTime = (session: Session) => {
+
+    }
+
     const checkTime = () => {
       console.log("checking time")
+      console.log(secondsRemaining)
+      console.log(secondsElapsed)
     }
 
     useEffect(() => {
       const intervalId: NodeJS.Timeout = setInterval(() => {
         secondsRemaining.current -= 1
+        secondsElapsed.current += 1
         checkTime();
         setRerender((e) => e + 1)
       }, 1000); // Runs every 1 second

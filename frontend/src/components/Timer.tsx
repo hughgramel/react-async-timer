@@ -680,7 +680,7 @@ function Timer() {
                 )}
               </div>
               {/* Render the fetched sessions for testing */}
-              {isLoading ? (
+              {/* {isLoading ? (
                 <div>Loading sessions...</div>
               ) : error ? (
                 <div>Error: {error}</div>
@@ -694,7 +694,7 @@ function Timer() {
                     </div>
                   ))}
                 </div>
-              )}
+              )} */}
 
               <div className="timer-actions">
                 <button className="save-button" onClick={handleSessionEnd}>Save session</button>

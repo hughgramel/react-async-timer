@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import '../styles/Timer.css'
 import { sessionsService, Session } from '../services/sessionsService';
 
@@ -7,11 +7,21 @@ import { sessionsService, Session } from '../services/sessionsService';
 function Timer() {
     const FOCUS_TIME_SECONDS = 3600
     const BREAK_TIME_SECONDS = 300
+    const USER_ID = 1;
 
     // Add state to store the fetched sessions
     const [activeSessions, setActiveSessions] = useState<Session[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [secondsRemaining, setSecondsRemaining] = useState(0)
+  
+    // Add a session creation in progress ref to prevent concurrent calls
+    const sessionCreationInProgressRef = useRef(false);
+    const isInitializedRef = useRef(false);
+
+    const convertSecondsToMinutes = (seconds: number): number => {
+      return Math.floor(seconds / 60)
+    }
 
       /**
        * Calculates and prints time differences between timestamps
@@ -65,7 +75,6 @@ function Timer() {
       // Add minutes (converting to milliseconds)
       const millisToAdd = minutesToAdd * 60 * 1000;
       adjustedDate.setTime(adjustedDate.getTime() + millisToAdd);
-      
       return adjustedDate;
     };
 
@@ -93,7 +102,7 @@ function Timer() {
         setIsLoading(true);
         setError(null);
         // Await the Promise to get the actual data
-        const sessions = await sessionsService.getActiveUserSessions(1);
+        const sessions = await sessionsService.getActiveUserSessions(USER_ID);
         setActiveSessions(sessions);
         return sessions; // Return actual data, not a Promise
       } catch (err) {
@@ -105,19 +114,89 @@ function Timer() {
       }
     }
 
-    useEffect(() => {
-        
 
+    // Modified function to prevent duplicate session creation
+    const createNewUserSession = async () => {
+      // Prevent concurrent creation attempts
+      if (sessionCreationInProgressRef.current) {
+        console.log("Session creation already in progress, skipping");
+        return null;
+      }
+      
+      try {
+        sessionCreationInProgressRef.current = true;
+        setIsLoading(true);
+        setError(null);
         
-        // Call the async function and handle the Promise properly
-        fetchUserSessions()
-          .then(sessions => {
-            console.log("Fetched sessions:", sessions);
-          })
-          .catch(err => {
-            console.error("Error in useEffect:", err);
-          });
-        console.log("Active sessions:", activeSessions)
+        // Double-check one more time that we don't have an active session
+        // This helps in case another request created one while we were deciding
+        const latestSessions = await sessionsService.getActiveUserSessions(USER_ID);
+        if (latestSessions && latestSessions.length > 0) {
+          console.log("Session was created by another request, using existing:", latestSessions[0]);
+          setActiveSessions(latestSessions);
+          return latestSessions;
+        }
+        
+        // No active session, create one
+        console.log("Creating new session - confirmed no existing sessions");
+        const currTime = new Date();
+        const session = await sessionsService.createSession({
+          break_end_time: null,
+          break_minutes_remaining: null,
+          break_start_time: null,
+          focus_start_time: currTime.toISOString(),
+          focus_end_time: adjustDateTime(currTime, convertSecondsToMinutes(FOCUS_TIME_SECONDS))?.toISOString(),
+          session_state: "focus",
+          user_id: USER_ID
+        });
+        
+        setActiveSessions(session);
+        return session;
+      } catch (err) {
+        console.error("Error creating session:", err);
+        setError("Failed to create session");
+        return null;
+      } finally {
+        sessionCreationInProgressRef.current = false;
+        setIsLoading(false);
+      }
+    };
+
+    useEffect(() => {
+      // Block initialization if already done
+      if (isInitializedRef.current) {
+        console.log("Session already initialized - skipping");
+        return;
+      }
+      
+      console.log("Starting session initialization");
+      isInitializedRef.current = true; // Mark initialized immediately
+
+      // Define an async function inside the effect
+      const initializeSession = async () => {
+        try {
+          setIsLoading(true);
+          
+          // First fetch existing sessions
+          const existingSessions = await fetchUserSessions();
+          
+          // Only create a new session if no active sessions exist
+          if (!existingSessions || existingSessions.length === 0) {
+            await createNewUserSession();
+          } else {
+            console.log("Using existing session:", existingSessions[0]);
+            // Initialize timer state with existing session
+          }
+        } catch (error) {
+          console.error("Error initializing session:", error);
+          setError("Failed to initialize session");
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      // Call the function
+      initializeSession();
     }, []);
 
     return (

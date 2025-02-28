@@ -49,6 +49,7 @@ export const sessionsService = {
 
   /**
    * Creates a new session in the database.
+   * Includes protection against duplicate session creation.
    * 
    * @param sessionData - Object containing the session data to be created
    * @returns Promise<Session[]> - Array containing the newly created session
@@ -71,11 +72,12 @@ export const sessionsService = {
    */
   createSession: async (sessionData: SessionInsert) => {
     try {
-      // Check if user already has an active session
+      // Add server-side double-check
       if (sessionData.user_id) {
-        const activeSessions = await sessionsService.getActiveUserSessions(sessionData.user_id);
-        if (activeSessions && activeSessions.length > 0) {
-          throw new Error(`User ${sessionData.user_id} already has an active session (ID: ${activeSessions[0].id})`);
+        const existingSessions = await sessionsService.getActiveUserSessions(sessionData.user_id);
+        if (existingSessions && existingSessions.length > 0) {
+          console.log(`User ${sessionData.user_id} already has an active session - returning existing`);
+          return existingSessions; // Return existing sessions instead of creating new one
         }
       }
       

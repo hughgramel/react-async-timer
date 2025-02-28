@@ -198,9 +198,14 @@ function Timer() {
       console.log(secondsRemaining)
     }
 
+    const checkTime = () => {
+      console.log("checking time")
+    }
+
     useEffect(() => {
       const intervalId: NodeJS.Timeout = setInterval(() => {
         secondsRemaining.current -= 1
+        checkTime();
         setRerender((e) => e + 1)
       }, 1000); // Runs every 1 second
       return () => clearInterval(intervalId); // Cleanup when component unmounts

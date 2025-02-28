@@ -4,7 +4,22 @@ import { sessionsService, Session } from '../services/sessionsService';
 import { SessionUpdate } from '../services/sessionsService';
 import { copyFileSync } from 'fs';
 
-
+/*
+ * Timer component that manages Pomodoro-style focus and break sessions.
+ * 
+ * This component handles:
+ * - Creating and managing user focus sessions
+ * - Tracking time elapsed and remaining during sessions
+ * - Managing transitions between focus and break states
+ * - Persisting session data through API calls
+ * - Providing UI controls for session management (breaks, discarding)
+ * 
+ * The component initializes by checking for existing active sessions and
+ * creating a new one if none exist. It uses refs for most state management
+ * to avoid re-renders and ensure timer accuracy.
+ * 
+ * @returns {JSX.Element} The rendered Timer component
+ */
 function Timer() {
     const FOCUS_TIME_SECONDS = 30 * 60
     const BREAK_TIME_SECONDS = 300
@@ -33,52 +48,26 @@ function Timer() {
     const intervalRef = useRef<NodeJS.Timeout>();
 
 
+    /**
+     * Converts seconds to minutes, rounding down to the nearest minute.
+     * 
+     * @param {number} seconds - The number of seconds to convert
+     * @returns {number} The equivalent number of whole minutes
+     */
     const convertSecondsToMinutes = (seconds: number): number => {
       return Math.floor(seconds / 60)
     }
 
-      /**
-       * Calculates and prints time differences between timestamps
-       * 
-       * @param startTimeStr The start time as UTC string without milliseconds
-       * @param currentTimeStr The current time as UTC string without milliseconds
-       * @param endTimeStr The end time as UTC string without milliseconds
-       */
-      const printTimeDifferences = (
-        startTimeStr: string | undefined,
-        currentTimeStr: string,
-        endTimeStr: string | undefined
-      ) => {
-        if (!startTimeStr || !endTimeStr) {
-          console.log('Cannot calculate time differences: missing timestamps');
-          return;
-        }
 
-        const startDate = new Date(startTimeStr);
-        const currentDate = new Date(currentTimeStr);
-        const endDate = new Date(endTimeStr);
-
-        // Calculate seconds between current and start
-        const elapsedSeconds = Math.floor((currentDate.getTime() - startDate.getTime()) / 1000);
-
-        // Calculate seconds between end and current
-        const remainingSeconds = Math.floor((endDate.getTime() - currentDate.getTime()) / 1000);
-
-        console.log('Timestamp Differences:');
-        console.log('---------------------');
-        console.log('Seconds elapsed (current - start):', elapsedSeconds);
-        console.log('Seconds remaining (end - current):', remainingSeconds);
-        console.log('---------------------');
-      };
 
     /**
-     * Adjusts a Date object by adding or subtracting minutes
+     * Adjusts a Date object by adding or subtracting minutes.
      * 
-     * @param date The Date object to adjust
-     * @param minutesToAdd Number of minutes to add (positive) or subtract (negative)
-     * @returns A new Date object with adjusted time
+     * Creates a new Date object with the adjusted time to avoid modifying the original.
      * 
-     * 
+     * @param {Date | null | undefined} date - The Date object to adjust
+     * @param {number} minutesToAdd - Number of minutes to add (positive) or subtract (negative)
+     * @returns {Date | null | undefined} A new Date object with adjusted time, or null/undefined if input was null/undefined
      */
     const adjustDateTime = (date: Date | null | undefined, minutesToAdd: number): Date | null | undefined => {
       if (!date) return date;
@@ -92,16 +81,16 @@ function Timer() {
       return adjustedDate;
     };
 
-      /**
-     * Adjusts a Date object by adding or subtracting minutes
+    /**
+     * Adjusts a Date object by adding or subtracting seconds.
      * 
-     * @param date The Date object to adjust
-     * @param secondsToAdd Number of seconds to add (positive) or subtract (negative)
-     * @returns A new Date object with adjusted time
+     * Creates a new Date object with the adjusted time to avoid modifying the original.
      * 
-     * 
+     * @param {Date | null | undefined} date - The Date object to adjust
+     * @param {number} secondsToAdd - Number of seconds to add (positive) or subtract (negative)
+     * @returns {Date | null | undefined} A new Date object with adjusted time, or null/undefined if input was null/undefined
      */
-      const adjustDateTimeInSeconds = (date: Date | null | undefined, secondsToAdd: number): Date | null | undefined => {
+    const adjustDateTimeInSeconds = (date: Date | null | undefined, secondsToAdd: number): Date | null | undefined => {
         if (!date) return date;
 
         // Create a new Date object to avoid modifying the original
@@ -111,13 +100,13 @@ function Timer() {
         const millisToAdd = secondsToAdd * 1000;
         adjustedDate.setTime(adjustedDate.getTime() + millisToAdd);
         return adjustedDate;
-      };
+    };
 
     /**
-     * This function prints out in hh:mm:ss format the number of seconds passed
-     * to it. 
-     * @param seconds Number of seconds passed
-     * @returns A string representing the number of seconds in hh:mm:ss format
+     * Converts a duration in seconds to a formatted time string (hh:mm:ss).
+     * 
+     * @param {number} seconds - The number of seconds to format
+     * @returns {string} A formatted time string in the format "hh:mm:ss"
      */
     const convertSecondsToTimeFormat = (seconds: number): string => {
         const numHours = Math.floor((seconds / 60) / 60);
@@ -131,7 +120,13 @@ function Timer() {
         return `${hoursStr}:${minutesStr}:${secondsStr}`
     }
 
-    // Fix this function to properly handle the Promise
+    /**
+     * Fetches active sessions for the current user from the API.
+     * 
+     * Updates component state with loading status, errors, and retrieved sessions.
+     * 
+     * @returns {Promise<Session[]>} Promise resolving to an array of active session objects
+     */
     const fetchUserSessions = async () => {
       try {
         setIsLoading(true);
@@ -150,7 +145,14 @@ function Timer() {
     }
 
 
-    // Modified function to prevent duplicate session creation
+    /**
+     * Creates a new focus session for the current user.
+     * 
+     * Includes safeguards against concurrent creation and checks for existing sessions
+     * before creating a new one. Sets up initial focus times and persists the session to the API.
+     * 
+     * @returns {Promise<Session[] | null>} Promise resolving to the created session array or null if creation failed
+     */
     const createNewUserSession = async () => {
       // Prevent concurrent creation attempts
       if (sessionCreationInProgressRef.current) {
@@ -208,6 +210,14 @@ function Timer() {
 
 
     
+    /**
+     * Updates the secondsRemaining and secondsElapsed refs based on the current stored end times.
+     * 
+     * This is used during the timer tick to update the time values without requiring a full
+     * session fetch from the API.
+     * 
+     * @throws {Error} If the required time references are null during the active state
+     */
     const setRemainingTimesFromEndTimes = () => {
       if (isBreak.current) {
         // Then we want to set the break remaining time
@@ -239,8 +249,15 @@ function Timer() {
       }
     }
 
-    // This method should set both the remaining and elapsed time given a
-    // certain session.
+    /**
+     * Sets the remaining and elapsed time values based on a session object.
+     * 
+     * Used when initializing or updating the timer from a session fetched from the API.
+     * Calculates both secondsRemaining and secondsElapsed based on the current time
+     * and the stored start/end times.
+     * 
+     * @param {Session} session - The session object containing time values
+     */
     const setRemainingAndElapsedTime = (session: Session) => {
       if (isBreak.current) {
         // Then we want to set the break remaining time
@@ -274,6 +291,12 @@ function Timer() {
 
 
 
+    /**
+     * Checks if the current timer has expired and handles session end if needed.
+     * 
+     * Called on every tick of the timer to determine if the session state
+     * should transition.
+     */
     const checkTime = () => {
       console.log("checking time")
       console.log(secondsRemaining)
@@ -285,6 +308,11 @@ function Timer() {
       }
     }
 
+    /**
+     * Handles the actions needed when a session (focus or break) ends.
+     * 
+     * Placeholder for session completion logic.
+     */
     const handleSessionEnd = () => {
       console.log("Handling session end")
     }
@@ -294,6 +322,12 @@ function Timer() {
       return () => clearInterval(intervalRef.current); // Cleanup when component unmounts
     }, [])
 
+    /**
+     * Initiates the timer tick interval that updates the UI every second.
+     * 
+     * Sets up an interval that updates time calculations and checks for 
+     * session completion every second.
+     */
     const tick = () => {
       intervalRef.current = setInterval(() => {
         setRemainingTimesFromEndTimes()
@@ -381,6 +415,13 @@ function Timer() {
 
 
 
+    /**
+     * Deletes the current session from the database.
+     * 
+     * Calls the API to remove the session and triggers a re-render.
+     * 
+     * @returns {Promise<void>} Promise that resolves when the session is deleted
+     */
     const deleteSession = async () => {
       try {
         await sessionsService.deleteSession(sessionId.current)
@@ -393,6 +434,18 @@ function Timer() {
     }
 
 
+    /**
+     * Initiates or extends a break session.
+     * 
+     * This function:
+     * 1. Checks if the user has break time remaining
+     * 2. Creates a new break if not currently on break, or extends the current break
+     * 3. Updates the relevant time references and session state
+     * 4. Persists changes to the database
+     * 
+     * @returns {Promise<void>} Promise that resolves when the break is set or extended
+     * @throws {Error} If break ending time calculations result in null values
+     */
     const setBreak = async () => {
       if (breakTimeRemaining.current >= 5) {
         // Now if we're already in a 
@@ -456,6 +509,18 @@ function Timer() {
       }
     }
 
+    /**
+     * Transitions from break state back to focus state.
+     * 
+     * This function:
+     * 1. Calculates how long the break lasted
+     * 2. Updates the focus end time to account for the break
+     * 3. Changes the session state back to focus
+     * 4. Persists changes to the database
+     * 
+     * @returns {Promise<void>} Promise that resolves when focus mode is restored
+     * @throws {Error} If focus time calculations result in null values
+     */
     const returnToFocus = async () => {
       console.log("Turning session back to focus");
       const breakTimeElapsed = secondsElapsed.current

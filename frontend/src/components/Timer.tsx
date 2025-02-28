@@ -344,6 +344,7 @@ function Timer() {
             secondsRemaining.current = Math.floor(timeDiffInMilliseconds / 1000);
           }
         }
+        breakTimeRemaining.current -= 5
         setRerender((e) => e + 1)
       } else {
         console.log("Not enough break time!")
@@ -392,19 +393,19 @@ function Timer() {
                 </div>
               {(
                 <div className="break-text">
-                  <button className='take-break-btn' onClick={setBreak}>
-                    Take a break (5 mins left)
-                  </button>
-                  <button className='take-break-btn' onClick={returnToFocus}>
+                  {
+                    isBreak.current ? <div>
+                       <button className='take-break-btn' onClick={returnToFocus} >
                     Go back to focus
                   </button>
-                  <button onClick={async () => {
-                    // Properly handle the Promise when button is clicked
-                    const sessions = await fetchUserSessions();
-                    console.log("Active sessions:", sessions);
-                  }}>
-                    Get active sessions
+                  <button className='take-break-btn' onClick={setBreak} disabled={breakTimeRemaining.current ? true : false}>
+                    Extend your break ({breakTimeRemaining.current} mins left)
                   </button>
+                    </div>
+                     :  <button className='take-break-btn' onClick={setBreak} disabled={breakTimeRemaining.current == 0 ? true : false}>
+                    Take a break (5 mins left)
+                  </button>
+                  }
                 </div>
               )}
             </div>

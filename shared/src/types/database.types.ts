@@ -12,7 +12,7 @@ export type Database = {
       sessions: {
         Row: {
           break_end_time: string | null
-          break_minutes_remaining: number | null
+          break_minutes_remaining: number
           break_start_time: string | null
           focus_end_time: string | null
           focus_start_time: string | null
@@ -22,7 +22,7 @@ export type Database = {
         }
         Insert: {
           break_end_time?: string | null
-          break_minutes_remaining?: number | null
+          break_minutes_remaining?: number
           break_start_time?: string | null
           focus_end_time?: string | null
           focus_start_time?: string | null
@@ -32,7 +32,7 @@ export type Database = {
         }
         Update: {
           break_end_time?: string | null
-          break_minutes_remaining?: number | null
+          break_minutes_remaining?: number
           break_start_time?: string | null
           focus_end_time?: string | null
           focus_start_time?: string | null

@@ -127,14 +127,12 @@ export const sessionsService = {
   updateSession: async (sessionId: number, sessionData: SessionUpdate) => {
     try {
       // Perform the update
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('sessions')
         .update(sessionData)
-        .eq('id', sessionId);
-        
-      if (error) {
-        throw error;
-      }
+        .eq('id', sessionId)
+        .select()
+      return data;
     } catch (error) {
       console.error('Error updating session:', error);
       throw error;

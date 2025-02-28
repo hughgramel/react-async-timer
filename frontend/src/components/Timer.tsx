@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import '../styles/Timer.css'
 import { sessionsService, Session } from '../services/sessionsService';
-
+import { SessionUpdate } from '../services/sessionsService';
 
 
 function Timer() {
@@ -14,12 +14,14 @@ function Timer() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [secondsRemaining, setSecondsRemaining] = useState(0)
+    
 
   
     // Add a session creation in progress ref to prevent concurrent calls
     const sessionCreationInProgressRef = useRef(false);
     const isInitializedRef = useRef(false);
     const sessionId = useRef(-1)
+    const isBreak = useRef(false)
   
     const convertSecondsToMinutes = (seconds: number): number => {
       return Math.floor(seconds / 60)
@@ -165,11 +167,23 @@ function Timer() {
 
 
     const setUIForSession = (session: Session) => {
-      if (session.focus_end_time) {
-        const endTime = new Date(session.focus_end_time);
-        const now = new Date(new Date().toISOString().slice(0, -1))
-        const timeDiffInMilliseconds = endTime.getTime() - now.getTime();
-        setSecondsRemaining(Math.floor(timeDiffInMilliseconds / 1000));
+      if (isBreak.current) {
+        console.log("Setting UI to be in break time")
+        // Then we want to set the timer to show the break time
+        if (session.break_end_time) {
+          const endTime = new Date(session.break_end_time);
+          const now = new Date(new Date().toISOString().slice(0, -1))
+          const timeDiffInMilliseconds = endTime.getTime() - now.getTime();
+          setSecondsRemaining(Math.floor(timeDiffInMilliseconds / 1000));
+        }
+      } else {
+        console.log("Setting UI to be in focus time")
+        if (session.focus_end_time) {
+          const endTime = new Date(session.focus_end_time);
+          const now = new Date(new Date().toISOString().slice(0, -1))
+          const timeDiffInMilliseconds = endTime.getTime() - now.getTime();
+          setSecondsRemaining(Math.floor(timeDiffInMilliseconds / 1000));
+        }
       }
     }
 
@@ -237,11 +251,41 @@ function Timer() {
       }
     }
 
+
+    const setBreak = async () => {
+      console.log("Updating session with break time");
+      const currTime = new Date();
+      const session: SessionUpdate = {
+        break_end_time: adjustDateTime(currTime, convertSecondsToMinutes(BREAK_TIME_SECONDS))?.toISOString(),
+        break_start_time: currTime.toISOString(),
+        session_state: "break",
+      };
+      const updatedWithBreak = await sessionsService.updateSession(sessionId.current, session)
+      if (updatedWithBreak) {
+        setActiveSessions(updatedWithBreak);
+      }
+      isBreak.current = true;
+      console.log(updatedWithBreak)
+    }
+
+    const returnToFocus = async () => {
+      console.log("Turning session back to focus");
+      const session: SessionUpdate = {
+        session_state: "focus",
+      };
+      const updatedWithBreak = await sessionsService.updateSession(sessionId.current, session)
+      if (updatedWithBreak) {
+        setActiveSessions(updatedWithBreak);
+        isBreak.current = false;
+      }
+      console.log(updatedWithBreak)
+    }
+
     return (
         <div className="timer-page">
           <div className="timer-container">
             <div>
-                <h1 className="timer-header">L1: Focus Session (3h)</h1>
+                <h1 className="timer-header">L1: {isBreak.current ? "Break" : "Focus"} Session (3h)</h1>
             </div>
             
             <div className="timer-display">
@@ -259,8 +303,11 @@ function Timer() {
               
               {(
                 <div className="break-text">
-                  <button className='take-break-btn'>
+                  <button className='take-break-btn' onClick={setBreak}>
                     Take a break (5 mins left)
+                  </button>
+                  <button className='take-break-btn' onClick={returnToFocus}>
+                    Go back to focus
                   </button>
                   <button onClick={async () => {
                     // Properly handle the Promise when button is clicked

@@ -27,6 +27,9 @@ function Timer() {
     const breakTimeRemaining = useRef(5)
     const currFocusEndTime = useRef("")
     const currBreakEndTime = useRef<string | null>(null)
+    const intervalRef = useRef<NodeJS.Timeout>();
+
+
     const convertSecondsToMinutes = (seconds: number): number => {
       return Math.floor(seconds / 60)
     }
@@ -85,6 +88,27 @@ function Timer() {
       adjustedDate.setTime(adjustedDate.getTime() + millisToAdd);
       return adjustedDate;
     };
+
+      /**
+     * Adjusts a Date object by adding or subtracting minutes
+     * 
+     * @param date The Date object to adjust
+     * @param secondsToAdd Number of seconds to add (positive) or subtract (negative)
+     * @returns A new Date object with adjusted time
+     * 
+     * 
+     */
+      const adjustDateTimeInSeconds = (date: Date | null | undefined, secondsToAdd: number): Date | null | undefined => {
+        if (!date) return date;
+        
+        // Create a new Date object to avoid modifying the original
+        const adjustedDate = new Date(date.getTime());
+        
+        // Add minutes (converting to milliseconds)
+        const millisToAdd = secondsToAdd * 1000;
+        adjustedDate.setTime(adjustedDate.getTime() + millisToAdd);
+        return adjustedDate;
+      };
 
     /**
      * This function prints out in hh:mm:ss format the number of seconds passed
@@ -177,48 +201,58 @@ function Timer() {
     };
 
 
-    const setUIForSession = (session: Session) => {
-      if (isBreak.current) {
-        console.log("Setting UI to be in break time")
-        // Then we want to set the timer to show the break time
-        if (session.break_end_time) {
-          const endTime = new Date(session.break_end_time);
-          const now = new Date()
-          const timeDiffInMilliseconds = endTime.getTime() - now.getTime();
-          secondsRemaining.current = Math.floor(timeDiffInMilliseconds / 1000);
-        }
-      } else {
-        console.log("Setting UI to be in focus time")
-        if (session.focus_end_time) {
-          const endTime = new Date(session.focus_end_time);
-          const now = new Date()
-          const timeDiffInMilliseconds = endTime.getTime() - now.getTime();
-          secondsRemaining.current = Math.floor(timeDiffInMilliseconds / 1000);
-        }
-      }
-      console.log(secondsRemaining)
-    }
+  
 
     // This method should set both the remaining and elapsed time given a
     // certain session.
     const setRemainingAndElapsedTime = (session: Session) => {
+      if (isBreak.current) {
+        // Then we want to set the break remaining time
+        if (session && session.break_end_time && session.break_start_time) {
+          const endTime = new Date(session.break_end_time);
+          const now = new Date()
+          const timeDiffInMilliseconds = endTime.getTime() - now.getTime();
+          secondsRemaining.current = Math.ceil(timeDiffInMilliseconds / 1000);
+          console.log(secondsRemaining.current)
 
+          const startTime = new Date(session.break_start_time)
+          const elapsedTimeDiffInMilliseconds = now.getTime() - startTime.getTime()
+          secondsElapsed.current = Math.floor(elapsedTimeDiffInMilliseconds / 1000)
+          console.log(secondsElapsed.current)
+        }
+      } else {
+        if (session && session.focus_end_time && session.focus_start_time) {
+          const endTime = new Date(session.focus_end_time);
+          const now = new Date()
+          const timeDiffInMilliseconds = endTime.getTime() - now.getTime();
+          secondsRemaining.current = Math.ceil(timeDiffInMilliseconds / 1000);
+          console.log(secondsRemaining.current)
+
+          const startTime = new Date(session.focus_start_time)
+          const elapsedTimeDiffInMilliseconds = now.getTime() - startTime.getTime()
+          secondsElapsed.current = Math.floor(elapsedTimeDiffInMilliseconds / 1000)
+          console.log(secondsElapsed.current)
+        }
+      }
     }
+
+
 
     const checkTime = () => {
       console.log("checking time")
       console.log(secondsRemaining)
       console.log(secondsElapsed)
+      // if (isBreak.current && )
     }
 
     useEffect(() => {
-      const intervalId: NodeJS.Timeout = setInterval(() => {
+      intervalRef.current = setInterval(() => {
         secondsRemaining.current -= 1
         secondsElapsed.current += 1
         checkTime();
         setRerender((e) => e + 1)
       }, 1000); // Runs every 1 second
-      return () => clearInterval(intervalId); // Cleanup when component unmounts
+      return () => clearInterval(intervalRef.current); // Cleanup when component unmounts
     }, [])
 
 
@@ -245,7 +279,7 @@ function Timer() {
           if (!existingSessions || existingSessions.length === 0) {
             const newSession = await createNewUserSession();
             if (newSession) {
-              setUIForSession(newSession[0])
+              setRemainingAndElapsedTime(newSession[0])
               console.log(newSession[0])
               sessionId.current = newSession[0].id
               console.log(sessionId.current)
@@ -270,7 +304,7 @@ function Timer() {
             console.log(existingSessions[0].session_state == "break")
             console.log(isBreak.current)
             console.log("breaktimeremaining: " + breakTimeRemaining.current)
-            setUIForSession(existingSessions[0])
+            setRemainingAndElapsedTime(existingSessions[0])
           }
         } catch (error) {
           console.error("Error initializing session:", error);
@@ -323,11 +357,10 @@ function Timer() {
             setActiveSessions(updatedWithBreak);
           }
           isBreak.current = true;
-          if (updatedWithBreak && updatedWithBreak[0] && updatedWithBreak[0].break_end_time) {
-            const endTime = new Date(updatedWithBreak[0].break_end_time);
-            const now = new Date()
-            const timeDiffInMilliseconds = endTime.getTime() - now.getTime();
-            secondsRemaining.current = Math.floor(timeDiffInMilliseconds / 1000);
+          if (updatedWithBreak && updatedWithBreak[0]) {
+            setRemainingAndElapsedTime(updatedWithBreak[0])
+          } else {
+            throw new Error("Break is null")
           }
         } else {
           // This means there's already a current break
@@ -353,11 +386,8 @@ function Timer() {
           if (updatedWithBreak) {
             setActiveSessions(updatedWithBreak);
           }
-          if (updatedWithBreak && updatedWithBreak[0] && updatedWithBreak[0].break_end_time) {
-            const endTime = new Date(updatedWithBreak[0].break_end_time);
-            const now = new Date()
-            const timeDiffInMilliseconds = endTime.getTime() - now.getTime();
-            secondsRemaining.current = Math.floor(timeDiffInMilliseconds / 1000);
+          if (updatedWithBreak && updatedWithBreak[0]) {
+            setRemainingAndElapsedTime(updatedWithBreak[0])
           }
         }
         breakTimeRemaining.current -= 5
@@ -369,7 +399,12 @@ function Timer() {
 
     const returnToFocus = async () => {
       console.log("Turning session back to focus");
+      console.log(currFocusEndTime.current)
+
+      const newEndDateString = adjustDateTimeInSeconds(new Date(currFocusEndTime.current), secondsElapsed.current)?.toUTCString()
+
       const session: SessionUpdate = {
+        focus_end_time: newEndDateString,
         session_state: "focus",
       };
       const updatedWithBreak = await sessionsService.updateSession(sessionId.current, session)
@@ -378,11 +413,10 @@ function Timer() {
         isBreak.current = false;
       }
       console.log(updatedWithBreak)
-      if (updatedWithBreak && updatedWithBreak[0] && updatedWithBreak[0].focus_end_time && updatedWithBreak[0].focus_start_time) {
-        const endTime = new Date(updatedWithBreak[0].focus_end_time);
-        const now = new Date()
-        const timeDiffInMilliseconds = endTime.getTime() - now.getTime();
-        secondsRemaining.current = Math.floor(timeDiffInMilliseconds / 1000);
+      if (updatedWithBreak && updatedWithBreak[0]) {
+        setRemainingAndElapsedTime(updatedWithBreak[0])
+      } else {
+        throw new Error("Focus time is null")
       }
       setRerender((e) => e + 1)
 
@@ -394,6 +428,10 @@ function Timer() {
             <div>
                 <h1 className="timer-header">L1: {isBreak.current ? "Break" : "Focus"} Session (3h)</h1>
             </div>
+
+            <div className="timer-display">
+                <div className="small-timer">{convertSecondsToTimeFormat(secondsElapsed.current)}</div>
+            </div>
             
             <div className="timer-display">
                 <div className="large-timer">{convertSecondsToTimeFormat(secondsRemaining.current)}</div>
@@ -404,7 +442,7 @@ function Timer() {
                 <div className="progress-bar">
                   <div 
                     className="progress-fill" 
-                    style={{ width: "10%" }}
+                    style={{ width: `${(secondsElapsed.current / (secondsElapsed.current + secondsRemaining.current)) * 100}%` }}
                   ></div>
                 </div>
               {(
